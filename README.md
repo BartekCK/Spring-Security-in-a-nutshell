@@ -119,3 +119,35 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
     }
 }
 ```
+
+### 3.Add Bcrypt and PreAuthorize
+
+```java
+@RestController
+public class HomeController {
+
+    @GetMapping("/")
+    public String home(){
+        return "Hello World!!!";
+    }
+
+    @GetMapping("/user")
+    @PreAuthorize("hasRole('ROLE_USER')")
+    public String user(){
+        return "Hello USER";
+    }
+
+    @GetMapping("/admin")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    public String admin(){
+        return "Hello ADMIN";
+    }
+}
+```
+**Change in ***public class SecurityConfiguration extends WebSecurityConfigurerAdapter*****
+```java
+   @Bean
+    public PasswordEncoder getPasswordEncoder(){
+        return new BCryptPasswordEncoder();
+    }
+```
