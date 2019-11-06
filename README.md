@@ -191,3 +191,130 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 
 }
 ```
+### 5.Add database provider **(Better way is use only ***auth.userDetailsService(userDetailsService).passwordEncoder(getPasswordEncoder());***)**
+
+```java
+@Configuration
+@EnableWebSecurity
+public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
+
+    @Autowired
+    private UserPrincipalDetailsService userPrincipalDetailsService;
+
+    @Override
+    protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+        auth.authenticationProvider(authenticationProvider());
+    }
+
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+        http.authorizeRequests()
+                .antMatchers("/index.html").permitAll()
+                .antMatchers("/profile/**").authenticated()
+                .antMatchers("/admin/**").hasRole("ADMIN")
+                .antMatchers("/management/**").hasAnyRole("ADMIN","MANAGER")
+                .antMatchers("/api/public/test1").hasAuthority("ACCESS_TEST1")
+                .antMatchers("/api/public/test2").hasAuthority("ACCESS_TEST2")
+                .antMatchers("/api/public/users").hasRole("ADMIN")
+                 .and()
+                .httpBasic();
+    }
+
+    @Bean
+    PasswordEncoder passwordEncoder(){
+        return new BCryptPasswordEncoder();
+    }
+
+
+    @Bean
+    DaoAuthenticationProvider authenticationProvider(){
+        DaoAuthenticationProvider daoAuthenticationProvider = new DaoAuthenticationProvider();
+        daoAuthenticationProvider.setPasswordEncoder(passwordEncoder());
+        daoAuthenticationProvider.setUserDetailsService(this.userPrincipalDetailsService);
+        return  daoAuthenticationProvider;
+    }
+}
+```
+
+**Static database**
+```java
+@Service
+public class DbInit implements CommandLineRunner {
+
+    private UserRepository userRepository;
+
+    private PasswordEncoder passwordEncoder;
+
+    public DbInit(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    @Override
+    public void run(String... args) throws Exception {
+        userRepository.deleteAll();
+
+        User dan = new User("dan",passwordEncoder.encode("dan"),"ROLE_USER","");
+        User admin = new User("admin",passwordEncoder.encode("admin"),"ROLE_ADMIN","ACCESS_TEST1,ACCESS_TEST2");
+        User manager = new User("manager",passwordEncoder.encode("manager"),"ROLE_MANAGER","ACCESS_TEST1");
+
+        List<User> users = Arrays.asList(dan,admin,manager);
+        this.userRepository.saveAll(users);
+    }
+}
+```
+
+```java
+public class UserPrincipal implements UserDetails {
+
+    private User user;
+    private List<GrantedAuthority> authorities;
+
+    public UserPrincipal(User user) {
+        this.user = user;
+    }
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+
+
+        this.authorities = user.getRoleList().stream().map(SimpleGrantedAuthority::new).collect(Collectors.toList());
+        this.authorities.addAll(user.getPermissionList().stream().map(SimpleGrantedAuthority::new).collect(Collectors.toList()));
+
+        return this.authorities;
+    }
+```
+
+```java
+@Entity
+public class User {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private long id;
+
+    @NotBlank
+    private String username;
+
+    @NotBlank
+    private String password;
+
+    private String roles;
+
+    private String permissions;
+
+    //etc...........
+    //..............
+
+    public List<String> getRoleList(){
+        if(this.roles.length()>0)
+            return Arrays.asList(this.roles.split(","));
+        return new ArrayList<>();
+    }
+
+    public List<String> getPermissionList(){
+        if(this.roles.length()>0)
+            return Arrays.asList(this.permissions.split(","));
+        return new ArrayList<>();
+    }
+}
