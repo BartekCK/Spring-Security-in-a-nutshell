@@ -1,7 +1,9 @@
-package com.example.demo;
+package com.example.demo.security;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -12,17 +14,15 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 @Configuration
 @EnableWebSecurity
 public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
+
+    @Autowired
+    private UserPrincipalDetailsService userPrincipalDetailsService;
+
+
+
     @Override
     protected void configure(AuthenticationManagerBuilder auth) throws Exception {
-        auth.inMemoryAuthentication()
-                .withUser("admin").password(passwordEncoder().encode("admin"))
-                    .roles("ADMIN").authorities("ACCESS_TEST1","ACCESS_TEST2","ROLE_ADMIN")
-                .and()
-                .withUser("dan").password(passwordEncoder().encode("dan"))
-                    .roles("USER")
-                .and()
-                .withUser("manager").password(passwordEncoder().encode("manager"))
-                    .roles("MANAGER").authorities("ACCESS_TEST1","ROLE_MANAGER");
+        auth.authenticationProvider(authenticationProvider());
     }
 
     @Override
@@ -43,5 +43,15 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
     PasswordEncoder passwordEncoder(){
         return new BCryptPasswordEncoder();
     }
+
+
+    @Bean
+    DaoAuthenticationProvider authenticationProvider(){
+        DaoAuthenticationProvider daoAuthenticationProvider = new DaoAuthenticationProvider();
+        daoAuthenticationProvider.setPasswordEncoder(passwordEncoder());
+        daoAuthenticationProvider.setUserDetailsService(this.userPrincipalDetailsService);
+        return  daoAuthenticationProvider;
+    }
+
 
 }
