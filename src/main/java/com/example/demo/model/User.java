@@ -93,7 +93,7 @@ public class User {
     }
 
     public List<String> getPermissionList(){
-        if(this.roles.length()>0)
+        if(this.permissions.length()>0)
             return Arrays.asList(this.permissions.split(","));
         return new ArrayList<>();
     }
