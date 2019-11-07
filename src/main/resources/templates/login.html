@@ -10,7 +10,7 @@
                 <i class="fa fa-user"></i> Please Login
             </div>
             <div class="card-block" style="padding: 24px;">
-                <form name="f" th:action="@{/login}" method="post">
+                <form name="f" th:action="@{/signin}" method="post">
                     <fieldset>
                         <!-- Thymeleaf + Spring Security error display -->
                         <div th:if="${param.error}" class="alert alert-danger">
@@ -23,14 +23,14 @@
 
                         <!-- Login Controls -->
                         <div class="form-group">
-                            <label for="username">Username</label>
-                            <input type="text" class="form-control" id="username" name="username"
+                            <label for="txt_username">Username</label>
+                            <input type="text" class="form-control" id="txt_username" name="txt_username"
                                    placeholder="Username">
                         </div>
 
                         <div class="form-group">
-                            <label for="password">Password</label>
-                            <input type="password" class="form-control" id="password" name="password"
+                            <label for="txt_password">Password</label>
+                            <input type="password" class="form-control" id="txt_password" name="txt_password"
                                    placeholder="Password">
                         </div>
 
