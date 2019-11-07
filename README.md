@@ -318,3 +318,89 @@ public class User {
         return new ArrayList<>();
     }
 }
+```
+
+### 6. Own login page manage by Security ***(Using MVC)***
+
+```java
+//...
+ @Override
+    protected void configure(HttpSecurity http) throws Exception {
+        http.authorizeRequests()
+                .antMatchers("/index.html").permitAll()
+                .antMatchers("/profile/**").authenticated()
+                .antMatchers("/admin/**").hasRole("ADMIN")
+                .antMatchers("/management/**").hasAnyRole("ADMIN","MANAGER")
+                .antMatchers("/api/public/test1").hasAuthority("ACCESS_TEST1")
+                .antMatchers("/api/public/test2").hasAuthority("ACCESS_TEST2")
+                .antMatchers("/api/public/users").hasRole("ADMIN")
+                 .and()
+                .formLogin()
+                .loginPage("/login").permitAll();
+    }
+```
+
+```java
+@Controller
+@RequestMapping("/")
+public class HomeController {
+    @GetMapping("index")
+    public String index(){
+        return "index";
+    }
+
+    @GetMapping("login")
+    public String login(){
+        return "login";
+    }
+}
+```
+
+```html
+<div class="container">
+    <div style="width:600px;margin-left: auto;margin-right: auto;margin-top:24px;padding: 24px;">
+        <div class="card">
+            <div class="card-header">
+                <i class="fa fa-user"></i> Please Login
+            </div>
+            <div class="card-block" style="padding: 24px;">
+                <form name="f" th:action="@{/login}" method="post">
+                    <fieldset>
+                        <!-- Thymeleaf + Spring Security error display -->
+                        <div th:if="${param.error}" class="alert alert-danger">
+                            Invalid username and password.
+                        </div>
+
+                        <div th:if="${param.logout}" class="alert alert-success">
+                            You have been logged out.
+                        </div>
+
+                        <!-- Login Controls -->
+                        <div class="form-group">
+                            <label for="username">Username</label>
+                            <input type="text" class="form-control" id="username" name="username"
+                                   placeholder="Username">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="password">Password</label>
+                            <input type="password" class="form-control" id="password" name="password"
+                                   placeholder="Password">
+                        </div>
+
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="checkRememberMe" name="checkRememberMe">
+                            <label class="form-check-label" for="checkRememberMe">Remember me?</label>
+                        </div>
+
+                        <!-- Login Button -->
+                        <div class="form-actions" style="margin-top: 12px;">
+                            <button type="submit" class="btn btn-success">Log in</button>
+                        </div>
+                    </fieldset>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+```
