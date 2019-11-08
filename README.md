@@ -475,3 +475,141 @@ public class HomeController {
 </body>
 </html>
 ```
+
+### 8. Add JWT with ***java-jwt***
+
+```
+<dependency>
+    <groupId>com.auth0</groupId>
+    <artifactId>java-jwt</artifactId>
+    <version>3.8.3</version>
+</dependency>
+```
+
+```java
+public class JwtProperties {
+    public static final String SECRET = "secret";
+    public static final int EXPIRATION_TIME = 864000000; //10 days
+    public static final  String TOKEN_PREFIX = "Bearer ";
+    public static final  String HEADER_STRING = "Authorization";
+}
+```
+
+```java
+public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilter {
+
+    private AuthenticationManager authenticationManager;
+
+    public JwtAuthenticationFilter(AuthenticationManager authenticationManager) {
+        this.authenticationManager = authenticationManager;
+    }
+
+    @Override
+    public Authentication attemptAuthentication(HttpServletRequest request, HttpServletResponse response) throws AuthenticationException {
+        LoginDTO credentials = null;
+        //Grab credentials and map then to loginViewModel
+        try {
+            credentials = new ObjectMapper().readValue(request.getInputStream(), LoginDTO.class);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        //Create Login token
+
+        UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
+                credentials.getUsername(),
+                credentials.getPassword(),
+                new ArrayList<>());
+
+        //Authenticate user
+        Authentication auth = authenticationManager.authenticate(authenticationToken);
+
+        return auth;
+    }
+
+    @Override
+    protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain, Authentication authResult) throws IOException, ServletException {
+        //Grab principal
+        UserPrincipal principal = (UserPrincipal) authResult.getPrincipal();
+
+        //Create JWT Token
+        String token = JWT.create()
+                .withSubject(principal.getUsername())
+                .withExpiresAt(new Date(System.currentTimeMillis() + JwtProperties.EXPIRATION_TIME))
+                .sign(Algorithm.HMAC512(JwtProperties.SECRET.getBytes()));
+
+        response.addHeader(JwtProperties.HEADER_STRING,JwtProperties.TOKEN_PREFIX + token);
+    }
+}
+```
+
+```java
+public class JwtAuthorizationFilter extends BasicAuthenticationFilter {
+
+    private UserRepository userRepository;
+    public JwtAuthorizationFilter(AuthenticationManager authenticationManager, UserRepository userRepository) {
+        super(authenticationManager);
+        this.userRepository = userRepository;
+    }
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
+        //Read the Authorization header, where JWT token should be
+        String header = request.getHeader(JwtProperties.HEADER_STRING);
+        
+        if(header == null || !header.startsWith(JwtProperties.TOKEN_PREFIX)){
+            chain.doFilter(request,response);
+            return;
+        }
+        
+        //If header is present try grab user principal from database and perform authorization
+        Authentication authentication = getUsernamePasswordAuthentication(request);
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        chain.doFilter(request,response);
+
+    }
+
+    private Authentication getUsernamePasswordAuthentication(HttpServletRequest request) {
+        String token = request.getHeader(JwtProperties.HEADER_STRING);
+        if(token!=null){
+            //parse the token and validate it
+            String username = JWT.require(Algorithm.HMAC512(JwtProperties.SECRET.getBytes()))
+                    .build()
+                    .verify(token.replace(JwtProperties.TOKEN_PREFIX,""))
+                    .getSubject();
+
+            //Search in the DB if we find the user by token subject (username)
+            // If so, then grab userDetails and create spring auth token using username pass, authorization/roles
+            if (username!=null)
+            {
+                User user = userRepository.findByUsername(username);
+                UserPrincipal principal = new UserPrincipal(user);
+                UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(user,null,principal.getAuthorities());
+                return auth;
+            }
+        }
+        return null;
+    }
+}
+```
+
+```java
+@Override
+    protected void configure(HttpSecurity http) throws Exception {
+        http
+                .csrf().disable()
+                .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                .and()
+                //add JWT filters
+                .addFilter(new JwtAuthenticationFilter(authenticationManager()))
+                .addFilter(new JwtAuthorizationFilter(authenticationManager(),this.userRepository))
+                .authorizeRequests()
+                //Configure access rules
+                .antMatchers(HttpMethod.POST,"/login").permitAll()
+                .antMatchers("/admin/users").hasRole("ADMIN")
+                .antMatchers("/management/*").hasAnyRole("MANAGER","ADMIN")
+                .antMatchers("/test1").authenticated();
+    }
+```
+
