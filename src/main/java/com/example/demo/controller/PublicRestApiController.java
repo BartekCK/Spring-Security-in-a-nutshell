@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 
 @RestController
-@RequestMapping("api/public")
+@RequestMapping()
 public class PublicRestApiController {
 
     private UserRepository userRepository;
@@ -16,17 +16,22 @@ public class PublicRestApiController {
         this.userRepository = userRepository;
     }
 
-    @GetMapping("test1")
+    //For all authenticated
+    @GetMapping("/test1")
     public String test1(){
         return "API Test 1";
     }
 
-    @GetMapping("test2")
+
+    //for managers
+    @GetMapping("/management/reports")
     public String test2(){
         return "API Test 2";
     }
 
-    @GetMapping("users")
+
+    //For admin
+    @GetMapping("/admin/users")
     public Iterable<User> allUsers(){
         return userRepository.findAll();
     }
